@@ -1,0 +1,11 @@
+step,rows_remaining,reason
+00_raw_load,584287,as delivered by CDC
+01_valid_dates,584287,drop unparseable sample_collect_date
+02_conc_not_null,584086,pcr_target_avg_conc is our core feature; cannot impute a virus reading
+03_units_copies_per_L,484303,"drop copies/g dry sludge - incommensurable units, not convertible"
+04_matrix_filter,483667,"keep ['raw wastewater', 'post grit removal']; medians ~42k vs ~44k copies/L so comparable"
+05_nondetect_LOD_half,483667,"zeros replaced by LOD/2, flagged in nondetect_flag"
+06_dedupe,480199,"removed 3,468 dup site/date/gene/matrix rows"
+08_outlier_flagged,480199,flagged not dropped - spikes may be genuine outbreak signal
+10_weekly_state_agg,12277,aggregate site-days -> state-weeks
+11_min_2_sites,11661,drop state-weeks backed by a single site (unstable mean)

@@ -1,0 +1,5 @@
+step,rows_remaining,reason
+20_raw_load,20703,as downloaded from data.cdc.gov
+21_valid_date_and_admits,20385,drop unparseable dates / null admissions (318 rows)
+22_drop_rollups,16986,drop USA + HHS Region aggregates (would double-count states)
+23_drop_voluntary_window,15632,"May-Oct 2024 voluntary reporting: admissions dip is an artifact, not epidemiology"
