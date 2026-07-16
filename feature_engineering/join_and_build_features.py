@@ -9,7 +9,8 @@ NOT a cleaning script. Run the two cleaning scripts first:
 """
 import pandas as pd, numpy as np, os
 
-OUT = '/mnt/user-data/outputs'
+# OUT = '/mnt/user-data/outputs'
+OUT = '/Users/christalchen/Documents/coding/AI4ALL7C'
 LOG = []
 def log(step, n, reason):
     LOG.append({'step': step, 'rows_remaining': n, 'reason': reason})

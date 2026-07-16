@@ -1,0 +1,5 @@
+step,rows_remaining,reason
+30_wastewater_weekly,11661,from clean_wastewater.py
+30b_hospital_weekly,15632,from clean_hospital_admissions.py
+31_joined_weekly,10434,inner join on state + WEEK (both weekly now)
+32_model_ready,10195,require label + >=1 lag
