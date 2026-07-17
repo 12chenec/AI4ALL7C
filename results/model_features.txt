@@ -1,0 +1,17 @@
+log10_conc_mean
+log10_conc_median
+conc_site_z_mean
+n_samples
+n_sites
+pct_nondetect
+pop_served
+admits
+coverage
+admits_per100k
+log10_conc_lag1
+log10_conc_lag2
+log10_conc_lag3
+conc_delta_1w
+conc_roll3
+month
+epiweek_of_year
