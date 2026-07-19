@@ -1,5 +1,3 @@
-# Member 1: Data Cleaning — Amy
-
 ## ⚠️ Headline: we had to swap a dataset
 
 **The COVID Case Surveillance dataset didn't work.** Its only time column is `case_month` — it tells you a case happened in "January 2024," not which week. And it only covers Jan–Jun 2024 (6 months).
