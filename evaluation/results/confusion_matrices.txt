@@ -1,0 +1,30 @@
+CONFUSION MATRICES & DERIVED RATES - 2022+ test set
+============================================================
+Test rows: 2,269   Actual surges (positives): 88 (3.88%)
+
+Layout:            Predicted
+                 No surge   Surge
+
+### Majority-class baseline
+Actual No surge     2,181       0
+Actual Surge           88       0
+  recall(sens)=0.000  specificity=1.000  precision=0.000  F1=0.000
+  ROC-AUC=n/a  PR-AUC=n/a  accuracy=0.961  balanced_acc=0.500
+
+### XGBoost
+Actual No surge     2,154      27
+Actual Surge           68      20
+  recall(sens)=0.227  specificity=0.988  precision=0.426  F1=0.296
+  ROC-AUC=0.871  PR-AUC=0.299  accuracy=0.958  balanced_acc=0.607
+
+### Logistic Regression
+Actual No surge     1,682     499
+Actual Surge           28      60
+  recall(sens)=0.682  specificity=0.771  precision=0.107  F1=0.185
+  ROC-AUC=0.803  PR-AUC=0.192  accuracy=0.768  balanced_acc=0.727
+
+### Random Forest
+Actual No surge     2,174       7
+Actual Surge           80       8
+  recall(sens)=0.091  specificity=0.997  precision=0.533  F1=0.155
+  ROC-AUC=0.841  PR-AUC=0.250  accuracy=0.962  balanced_acc=0.544
