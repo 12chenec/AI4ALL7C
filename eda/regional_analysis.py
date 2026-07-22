@@ -20,6 +20,9 @@ urban_dataset = pd.read_csv(
     "/Users/christalchen/Desktop/AI4ALL/Ruralurbancontinuumcodes2023.csv",
     encoding='latin1',
 )
+# Load the merged datasets
+rolling_data = pd.read_csv("model_ready_weekly.csv")
+era_data = pd.read_csv("model_ready_era2022.csv")
 
 # Count the number of records in each state/territory.
 def plot_samples_by_territory(df):
@@ -349,7 +352,7 @@ def summarize_features_varying_most_by_territory(wastewater_df, top_n=10):
         )
 
 
-# plot_samples_by_territory(wastewater_dataset)
+# plot_samples_by_territory(era_data)
 # plot_sites_by_territory(wastewater_dataset)
 # print_county_coverage_percentage(wastewater_dataset, counties_dataset)
 # plot_unrepresented_counties_by_territory(wastewater_dataset, counties_dataset)
