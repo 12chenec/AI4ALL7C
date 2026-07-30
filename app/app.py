@@ -5,29 +5,11 @@ from pathlib import Path
 
 
 # -----------------------------
-# Page Setup
+# Page Configuration
 # -----------------------------
 st.set_page_config(
-    page_title="COVID-19 Surge Predictor",
-    page_icon="🦠",
-    layout="centered"
-)
-
-
-# -----------------------------
-# Title and Instructions
-# -----------------------------
-st.title("🦠 COVID-19 Surge Prediction")
-
-st.write(
-    """
-    This application uses wastewater surveillance data and a machine learning
-    model to predict whether a region is likely to experience a COVID-19 surge
-    in the following week.
-
-    Enter the requested surveillance information below and click **Predict**
-    to receive a prediction.
-    """
+    page_title="COVID-19 Surge Prediction Dashboard",
+    layout="wide"
 )
 
 
@@ -36,138 +18,232 @@ st.write(
 # -----------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-MODEL_PATH = BASE_DIR / "results" / "xgboost_model.pkl"
-FEATURE_PATH = BASE_DIR / "results" / "model_features.txt"
+model = joblib.load(
+    BASE_DIR / "results" / "xgboost_model.pkl"
+)
 
-
-model = joblib.load(MODEL_PATH)
-
-with open(FEATURE_PATH) as f:
+with open(BASE_DIR / "results" / "model_features.txt") as f:
     feature_names = [line.strip() for line in f]
 
 
 # -----------------------------
-# Input Interface
+# Sidebar
 # -----------------------------
+with st.sidebar:
 
-st.header("Wastewater Surveillance Information")
+    st.title("About This Dashboard")
 
-log10_conc_mean = st.number_input(
-    "Average Wastewater Concentration (log10)",
-    value=0.0
-)
+    st.write(
+        """
+        This application uses a machine learning model to predict whether
+        a COVID-19 surge is likely to occur in the following week.
+        """
+    )
 
-log10_conc_median = st.number_input(
-    "Median Wastewater Concentration (log10)",
-    value=0.0
-)
+    st.write(
+        """
+        The model was trained using wastewater surveillance trends and
+        historical COVID-19 outbreak labels.
+        """
+    )
 
-conc_site_z_mean = st.number_input(
-    "Average Site Concentration Z-Score",
-    value=0.0
-)
+    st.info(
+        """
+        Model inputs include wastewater concentration patterns,
+        recent trend information, and time-based features.
+        """
+    )
 
-
-st.header("Sampling Information")
-
-n_samples = st.number_input(
-    "Number of Wastewater Samples Collected",
-    min_value=1,
-    value=1
-)
-
-n_sites = st.number_input(
-    "Number of Wastewater Testing Sites",
-    min_value=1,
-    value=1
-)
-
-pct_nondetect = st.number_input(
-    "Percent of Samples with Non-Detectable Levels",
-    min_value=0.0,
-    max_value=100.0,
-    value=0.0
-)
+    st.caption(
+        "For research and educational demonstration purposes only."
+    )
 
 
-st.header("Population and Hospital Data")
+# -----------------------------
+# Header
+# -----------------------------
+st.title("COVID-19 Surge Prediction Dashboard")
 
-pop_served = st.number_input(
-    "Population Served by Wastewater System",
-    min_value=0,
-    value=100000
-)
+st.markdown(
+    """
+    This dashboard estimates potential COVID-19 surge risk using
+    wastewater surveillance data and machine learning.
 
-admits = st.number_input(
-    "Current COVID-19 Hospital Admissions",
-    min_value=0,
-    value=0
-)
-
-coverage = st.number_input(
-    "Data Coverage",
-    min_value=0.0,
-    max_value=1.0,
-    value=1.0
-)
-
-admits_per100k = st.number_input(
-    "Hospital Admissions per 100,000 People",
-    min_value=0.0,
-    value=0.0
+    Enter recent wastewater monitoring information below and generate
+    a prediction for the following week.
+    """
 )
 
 
-st.header("Recent Trends")
-
-log10_conc_lag1 = st.number_input(
-    "Wastewater Concentration One Week Ago (log10)",
-    value=0.0
-)
-
-log10_conc_lag2 = st.number_input(
-    "Wastewater Concentration Two Weeks Ago (log10)",
-    value=0.0
-)
-
-log10_conc_lag3 = st.number_input(
-    "Wastewater Concentration Three Weeks Ago (log10)",
-    value=0.0
-)
-
-conc_delta_1w = st.number_input(
-    "One-Week Change in Concentration",
-    value=0.0
-)
-
-conc_roll3 = st.number_input(
-    "Three-Week Rolling Average Concentration",
-    value=0.0
-)
+st.divider()
 
 
-st.header("Time Information")
+# -----------------------------
+# Wastewater Monitoring
+# -----------------------------
+st.subheader("Wastewater Concentration Data")
 
-month = st.selectbox(
-    "Month",
-    list(range(1, 13))
-)
+col1, col2, col3 = st.columns(3)
 
-epiweek_of_year = st.number_input(
-    "Epidemiological Week of Year",
-    min_value=1,
-    max_value=53,
-    value=1
-)
+with col1:
+    log10_conc_mean = st.number_input(
+        "Average wastewater concentration (log10)",
+        value=0.0,
+        help="Average measured viral concentration on a logarithmic scale."
+    )
+
+with col2:
+    log10_conc_median = st.number_input(
+        "Median wastewater concentration (log10)",
+        value=0.0
+    )
+
+with col3:
+    conc_site_z_mean = st.number_input(
+        "Average concentration trend score",
+        value=0.0,
+        help="Standardized concentration compared with historical levels."
+    )
+
+
+# -----------------------------
+# Sampling Information
+# -----------------------------
+st.subheader("Wastewater Sampling Information")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    n_samples = st.number_input(
+        "Number of samples collected",
+        min_value=1,
+        value=10
+    )
+
+with col2:
+    n_sites = st.number_input(
+        "Number of monitoring sites",
+        min_value=1,
+        value=1
+    )
+
+with col3:
+    pct_nondetect = st.number_input(
+        "Percentage of non-detect samples",
+        min_value=0.0,
+        max_value=100.0,
+        value=0.0
+    )
+
+
+# -----------------------------
+# Additional Dataset Features
+# -----------------------------
+st.subheader("Additional Monitoring Information")
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    pop_served = st.number_input(
+        "Population represented",
+        min_value=0,
+        value=100000
+    )
+
+with col2:
+    admits = st.number_input(
+        "Reported hospital admissions",
+        min_value=0,
+        value=0
+    )
+
+with col3:
+    coverage = st.number_input(
+        "Data coverage score",
+        min_value=0.0,
+        max_value=1.0,
+        value=1.0
+    )
+
+with col4:
+    admits_per100k = st.number_input(
+        "Admissions per 100,000 people",
+        min_value=0.0,
+        value=0.0
+    )
+
+
+# -----------------------------
+# Historical Trends
+# -----------------------------
+with st.expander("Historical Wastewater Trends"):
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        log10_conc_lag1 = st.number_input(
+            "Wastewater concentration 1 week ago",
+            value=0.0
+        )
+
+    with col2:
+        log10_conc_lag2 = st.number_input(
+            "Wastewater concentration 2 weeks ago",
+            value=0.0
+        )
+
+    with col3:
+        log10_conc_lag3 = st.number_input(
+            "Wastewater concentration 3 weeks ago",
+            value=0.0
+        )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        conc_delta_1w = st.number_input(
+            "One-week concentration change",
+            value=0.0
+        )
+
+    with col2:
+        conc_roll3 = st.number_input(
+            "Three-week rolling average concentration",
+            value=0.0
+        )
+
+
+# -----------------------------
+# Time Information
+# -----------------------------
+st.subheader("Time Information")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    month = st.selectbox(
+        "Month",
+        range(1, 13)
+    )
+
+with col2:
+    epiweek_of_year = st.number_input(
+        "Epidemiological week",
+        min_value=1,
+        max_value=53,
+        value=1
+    )
 
 
 # -----------------------------
 # Prediction
 # -----------------------------
-
 st.divider()
 
-if st.button("🔍 Predict COVID-19 Surge"):
+if st.button(
+    "Generate Prediction",
+    use_container_width=True
+):
 
     input_data = {
         "log10_conc_mean": log10_conc_mean,
@@ -192,8 +268,6 @@ if st.button("🔍 Predict COVID-19 Surge"):
 
     input_df = pd.DataFrame([input_data])
 
-
-    # Ensure feature order matches training
     input_df = input_df[feature_names]
 
 
@@ -202,35 +276,52 @@ if st.button("🔍 Predict COVID-19 Surge"):
     confidence = model.predict_proba(input_df)[0][1]
 
 
-    st.header("Prediction Result")
+    st.subheader("Prediction Result")
 
 
     if prediction == 1:
+
         st.error(
-            "⚠️ The model predicts a likely COVID-19 surge next week."
+            "A potential COVID-19 surge is predicted for the following week."
         )
+
     else:
+
         st.success(
-            "✅ The model predicts no COVID-19 surge next week."
+            "No significant COVID-19 surge is predicted for the following week."
         )
 
 
-    st.metric(
-        "Prediction Confidence",
-        f"{confidence:.1%}"
-    )
+    col1, col2 = st.columns(2)
 
+    with col1:
+        st.metric(
+            "Model Confidence",
+            f"{confidence:.1%}"
+        )
 
-    st.progress(float(confidence))
+    with col2:
+
+        if confidence >= 0.75:
+            strength = "High"
+        elif confidence >= 0.50:
+            strength = "Moderate"
+        else:
+            strength = "Low"
+
+        st.metric(
+            "Prediction Strength",
+            strength
+        )
 
 
 # -----------------------------
 # Footer
 # -----------------------------
-
 st.divider()
 
 st.caption(
-    "This prediction is generated by a machine learning model trained on "
-    "wastewater surveillance data. It is intended for research and educational purposes."
+    "Machine learning model trained on wastewater surveillance trends "
+    "and historical COVID-19 outbreak labels. "
+    "This dashboard is intended for research and educational use."
 )
