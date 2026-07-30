@@ -10,56 +10,71 @@ Selected based on `model_evaluation.md` and `evaluation/results/evaluation_metri
 |---|---|
 | `surge_prediction_pipeline.pkl` | Final trained pipeline (joblib). Takes the raw merged feature/target dataframe, selects and orders the 17 model features, and runs the XGBoost classifier. |
 | `pipeline_features.txt` | The 17 features the model uses, in order. |
-| `pipeline_test_metrics.json` | Metrics from re-running the saved pipeline on the held-out test set. |
-| `build_final_pipeline.py` | Script that built and saved the pipeline (loads data, fits, evaluates, saves). |
+| `pipeline_thresholds.json` | The three tuned decision thresholds and how they were chosen. |
+| `pipeline_test_metrics.json` | Test-set metrics at the default cutoff and at each tuned threshold. |
+| `build_final_pipeline.py` | Script that builds everything above. Rerun it if the upstream data changes. |
 
-Preprocessing: no scaling or imputation is applied — XGBoost handles missing values natively, and the pipeline's only "preprocessing" step is selecting/ordering the 17 engineered features from a raw input row (via a `ColumnTransformer` passthrough). This mirrors how the model was trained and evaluated in `model_development/train_models.py` and `evaluation/evaluate_models.py`.
+Preprocessing: no scaling or imputation is applied. XGBoost handles missing values natively, and the pipeline's only preprocessing step is selecting and ordering the 17 engineered features from a raw input row (a `ColumnTransformer` passthrough). This mirrors how the model was trained and evaluated in `model_development/train_models.py` and `evaluation/evaluate_models.py`.
 
-To load and use it:
+## The decision threshold matters more than the model here
+
+`.predict()` applies a hardcoded 0.5 cutoff. Nobody chose that number, it is just the scikit-learn default, and it assumes balanced classes and equal costs for false positives and false negatives. Neither holds here: only 3.9% of test weeks are surges, and in an early-warning setting missing a surge is worse than a false alarm. At 0.5 the model flags almost nothing and misses 67 of 88 surges.
+
+So `build_final_pipeline.py` now tunes the threshold. It carves a time-based validation window off the end of the training data (everything from 2024-12-14 onward, 1,502 rows), fits on the earlier data, and picks thresholds there. **The test set is never used to choose a threshold.** Three operating points are saved:
+
+| Name | Threshold | Chosen by |
+|---|---|---|
+| `high_precision` | 0.385 | F0.5 on validation |
+| `balanced` | 0.241 | F1 on validation |
+| `high_recall` | 0.145 | F2 on validation |
+
+## Performance (2022+ held-out test set)
+
+Ranking quality is the same at every row below, since changing the threshold does not change the model: **ROC-AUC 0.873, PR-AUC 0.327** (no-skill PR-AUC would be 0.039).
+
+| Operating point | Threshold | Accuracy | Balanced acc. | Precision | Recall | F1 | TP | FP | FN |
+|---|---|---|---|---|---|---|---|---|---|
+| Default (unchosen) | 0.500 | 0.959 | 0.613 | 0.447 | 0.239 | 0.311 | 21 | 26 | 67 |
+| `high_precision` | 0.385 | 0.948 | 0.695 | 0.359 | 0.420 | **0.387** | 37 | 66 | 51 |
+| `balanced` | 0.241 | 0.900 | 0.719 | 0.199 | 0.523 | 0.288 | 46 | 185 | 42 |
+| `high_recall` | 0.145 | 0.800 | **0.743** | 0.124 | **0.682** | 0.209 | 60 | 425 | 28 |
+
+The headline: moving off the default cutoff roughly doubles or triples the number of surges caught, from 21 out of 88 up to 37, 46, or 60 depending on how many false alarms you are willing to accept. The `high_precision` point is strictly better than the default on F1, recall, and balanced accuracy at once, and only gives up precision.
+
+Accuracy falls as the threshold drops, and that is expected rather than a problem. The majority-class ("always no surge") baseline already scores 0.961 accuracy by construction, so accuracy mostly measures how often the model stays quiet. ROC-AUC, PR-AUC, recall, and balanced accuracy are the metrics that reflect actual surge-detection skill.
+
+## Using it
 
 ```python
-import joblib
+import joblib, json
+
 pipe = joblib.load("final_model/surge_prediction_pipeline.pkl")
-predictions = pipe.predict(new_data)          # 0/1 surge prediction
-probabilities = pipe.predict_proba(new_data)[:, 1]   # surge probability
+thresholds = json.load(open("final_model/pipeline_thresholds.json"))["thresholds"]
+
+proba = pipe.predict_proba(new_data)[:, 1]
+predictions = (proba >= thresholds["balanced"]).astype(int)
 ```
 
-`new_data` just needs to contain the 17 columns in `pipeline_features.txt` (extra columns like `state_territory` or `week_end` are fine and get dropped automatically).
-
-## Performance (2022+ held-out test set, default 0.5 threshold)
-
-| Metric | Value |
-|---|---|
-| Accuracy | 0.957 |
-| Balanced accuracy | 0.612 |
-| Precision | 0.404 |
-| Recall | 0.239 |
-| Specificity | 0.986 |
-| F1 | 0.300 |
-| ROC-AUC | 0.869 |
-| PR-AUC | 0.307 |
-| Confusion matrix | TP 21, FP 31, FN 67, TN 2150 |
-
-(Numbers reproduced directly by loading `surge_prediction_pipeline.pkl` and scoring the test split — match `results/model_results.csv` exactly. Minor run-to-run differences of a point or two on TP/FP vs. `evaluation/results/evaluation_metrics.csv` are normal XGBoost re-fit variance, not a preprocessing difference — both scripts use identical data, split, features, and hyperparameters.)
-
-Accuracy is not the metric to trust here: the majority-class ("always no surge") baseline already scores 0.961 by construction, since only 3.9% of test weeks are true surges. ROC-AUC, PR-AUC, F1, and recall are the metrics that actually reflect surge-detection skill.
+Use `predict_proba` and one of the saved thresholds rather than `pipe.predict()`, which silently reapplies the 0.5 default. `new_data` needs the 17 columns in `pipeline_features.txt`; extra columns like `state_territory` or `week_end` are fine and get dropped automatically.
 
 ## Strengths
 
-- Best overall ranking ability of the three models: highest ROC-AUC (0.869–0.871) and PR-AUC (0.30) on the test set, meaning its probability scores separate surge weeks from non-surge weeks better than Logistic Regression or Random Forest across nearly the whole threshold range.
-- Best F1 score (0.30) among the real models, and the most balanced confusion matrix — it doesn't collapse to "always predict no surge" the way Random Forest effectively does (Random Forest recall is only 0.09).
-- Outputs well-calibrated-enough probabilities to support threshold tuning: since the default 0.5 cutoff is conservative, moving the threshold down along the PR curve can trade some precision for meaningfully more recall.
-- Handles the lag/rolling features' missing values natively, no imputation needed.
+- Best ranking ability of the models compared: ROC-AUC 0.873 and PR-AUC 0.327 on the test set, roughly 8x the no-skill PR-AUC of 0.039. Its probability scores separate surge weeks from quiet weeks well.
+- With a tuned threshold it detects a useful share of surges. At the `high_recall` setting it catches 60 of 88 (68%).
+- Handles the lag and rolling features' missing values natively, no imputation needed.
+- Threshold is now an explicit, documented choice rather than an accident, and the Streamlit app exposes it so the trade-off is visible to whoever is using the tool.
 
-## Weaknesses
+## Weaknesses and honest limitations
 
-- Recall is still low at the default threshold (0.24–0.29), meaning it misses roughly 70% of real surge weeks out of the box. Not suitable as-is for an early-warning system without threshold tuning.
-- Precision ceiling is modest (~0.40–0.53 depending on the specific re-fit): even when it flags a surge, it's wrong more often than not.
-- Less interpretable than Logistic Regression; relies on the separate SHAP analysis for explainability.
-- No model in this comparison is production-ready yet — even XGBoost's PR-AUC (~0.30) is far from what you'd want for a deployed alerting system, given the strong class imbalance (3.9% positive rate).
+- **Precision is low at useful recall levels.** Catching 68% of surges costs 425 false alarms across 2,269 weeks. This is a real constraint of the problem, not a tuning mistake: surges are rare, so most positive predictions are wrong.
+- **Base-rate drift is severe and unaddressed.** The surge rate falls steadily across the data: 26% in 2022, 19% in 2023, 11% in 2024, 4.4% in 2025, 1.7% in 2026. The model is trained on a period when surges were roughly four times more common than in the test period, which is a large part of why the validation-tuned thresholds transfer imperfectly.
+- **Hyperparameter tuning did not help.** Depth, learning rate, subsampling, regularization, recency-restricted training, and recency sample weighting were all tried; none improved PR-AUC over the current settings, and recency weighting made it worse. The gains available here came from the threshold, not the model.
+- **`admits_per100k` is not trustworthy.** It divides statewide admissions by the wastewater plants' population served, which are different denominators. It produces impossible values (Florida at 6,941 admissions per 100k in one week, meaning 7% of the population). SHAP ranks it as an important feature, so this is worth fixing upstream in feature engineering before the numbers are relied on.
+- Less interpretable than Logistic Regression, which is what the separate SHAP analysis is for.
+- Not production-ready as a public-health alerting system. Treat it as a research prototype and one signal among several.
 
-## Recommended next steps (carried over from `model_evaluation.md`)
+## Suggested next steps
 
-1. Tune the decision threshold instead of using the default 0.5 — pick an operating point on the PR curve that matches the desired precision/recall trade-off.
-2. Try resampling or `scale_pos_weight` to lift recall, the way `class_weight="balanced"` does for Logistic Regression.
-3. Consider a regression framing on `y_reg_next_admits` as a second approach, since the binary surge label discards the magnitude of the jump.
+1. Fix `admits_per100k` upstream so it uses actual state population, then retrain and see whether ranking improves.
+2. Address the base-rate drift directly, for example by calibrating probabilities on a recent window or by predicting a state-relative surge definition that is stable over time.
+3. Consider a regression framing on `y_reg_next_admits`, since the binary label discards the size of the jump.

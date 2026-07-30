@@ -8,9 +8,13 @@ and `model_evaluation.md` (how well it performs).
 **Method:** `shap.TreeExplainer` on the saved XGBoost pipeline, run on the 2,269-row held-out
 test set (`feature_matrix_era2022.csv` + `targets_era2022.csv`, `split_era == "test"`). Before
 running SHAP, I reloaded the pipeline and re-scored the real test set to confirm it reproduces
-`pipeline_test_metrics.json` exactly (accuracy 0.957, ROC-AUC 0.869, confusion matrix
-TP 21 / FP 31 / FN 67 / TN 2150) — so the explanations below are for the actual shipped model,
-not a re-trained stand-in.
+`pipeline_test_metrics.json` exactly (accuracy 0.959, ROC-AUC 0.873, confusion matrix
+TP 21 / FP 26 / FN 67 / TN 2155 at the default 0.5 cutoff) — so the explanations below are for
+the actual shipped model, not a re-trained stand-in.
+
+Note that SHAP explains the model's *probability* output, which does not depend on the decision
+threshold. The tuned thresholds in `FINAL_MODEL.md` change which probabilities get called a
+surge, not the feature attributions below.
 
 ---
 
@@ -21,23 +25,23 @@ moves the model's output (in log-odds of surge) on average, up or down.
 
 | Rank | Feature | Mean \|SHAP\| | What it is |
 |---|---|---|---|
-| 1 | `admits_per100k` | 0.819 | This week's admissions, population-normalized |
-| 2 | `conc_site_z_mean` | 0.784 | Wastewater level vs. *that site's own* historical baseline |
-| 3 | `epiweek_of_year` | 0.527 | Calendar week (seasonality) |
-| 4 | `log10_conc_mean` | 0.452 | Raw wastewater concentration, log-scaled |
-| 5 | `log10_conc_lag3` | 0.228 | Wastewater signal 3 weeks ago |
-| 6 | `coverage` | 0.172 | Fraction of hospitals reporting that week |
-| 7 | `log10_conc_lag1` | 0.163 | Wastewater signal 1 week ago |
-| 8 | `conc_delta_1w` | 0.149 | Week-over-week change in wastewater signal |
-| 9 | `n_samples` | 0.146 | Lab samples backing the row |
-| 10 | `log10_conc_lag2` | 0.119 | Wastewater signal 2 weeks ago |
-| 11 | `admits` | 0.100 | Raw (non-normalized) admissions this week |
+| 1 | `admits_per100k` | 0.817 | This week's admissions, population-normalized |
+| 2 | `conc_site_z_mean` | 0.800 | Wastewater level vs. *that site's own* historical baseline |
+| 3 | `epiweek_of_year` | 0.529 | Calendar week (seasonality) |
+| 4 | `log10_conc_mean` | 0.453 | Raw wastewater concentration, log-scaled |
+| 5 | `log10_conc_lag3` | 0.236 | Wastewater signal 3 weeks ago |
+| 6 | `coverage` | 0.175 | Fraction of hospitals reporting that week |
+| 7 | `log10_conc_lag1` | 0.166 | Wastewater signal 1 week ago |
+| 8 | `n_samples` | 0.156 | Lab samples backing the row |
+| 9 | `conc_delta_1w` | 0.149 | Week-over-week change in wastewater signal |
+| 10 | `admits` | 0.124 | Raw (non-normalized) admissions this week |
+| 11 | `log10_conc_lag2` | 0.106 | Wastewater signal 2 weeks ago |
 | 12 | `log10_conc_median` | 0.095 | Median wastewater concentration |
-| 13 | `pop_served` | 0.078 | Population covered by reporting plants |
-| 14 | `month` | 0.068 | Calendar month |
-| 15 | `pct_nondetect` | 0.049 | Fraction of samples below detection limit |
-| 16 | `n_sites` | 0.036 | Number of reporting treatment plants |
-| 17 | `conc_roll3` | 0.032 | 3-week rolling average wastewater signal |
+| 13 | `pop_served` | 0.081 | Population covered by reporting plants |
+| 14 | `month` | 0.076 | Calendar month |
+| 15 | `pct_nondetect` | 0.044 | Fraction of samples below detection limit |
+| 16 | `n_sites` | 0.039 | Number of reporting treatment plants |
+| 17 | `conc_roll3` | 0.038 | 3-week rolling average wastewater signal |
 
 ![Global feature importance](shap/fig_shap_importance_bar.png)
 
@@ -80,7 +84,7 @@ moves the model's output (in log-odds of surge) on average, up or down.
 ## 3. Local examples: a catch and a miss
 
 ### Correctly flagged surge (true positive)
-**Connecticut, week ending 2025-12-20 — model probability 0.74**
+**Arkansas, week ending 2025-12-20 — model probability 0.58**
 
 ![True positive waterfall](shap/fig_waterfall_true_positive.png)
 
@@ -88,7 +92,7 @@ Elevated `admits_per100k` and a high `conc_site_z_mean` both push the prediction
 the base rate, and the model correctly flags this as a surge week.
 
 ### Missed surge (false negative)
-**Alaska, week ending 2025-07-26 — model probability 0.07**
+**Alaska, week ending 2025-07-26 — model probability 0.09**
 
 ![False negative waterfall](shap/fig_waterfall_false_negative.png)
 
@@ -98,7 +102,13 @@ so the model saw nothing unusual — even though a surge happened. This is a con
 of the recall problem flagged in `FINAL_MODEL.md`: the model needs the signal to already look
 abnormal before it reacts, so surges that emerge from an already-elevated or noisy baseline
 (Alaska has some of the lowest `n_sites` coverage in the dataset) are the ones most likely to
-slip through. This lines up with the low recall (0.24) noted in `FINAL_MODEL.md`.
+slip through. This lines up with the low recall (0.24 at the default cutoff) noted in
+`FINAL_MODEL.md`.
+
+Worth noting: this particular miss is not fixable by threshold tuning. At probability 0.09 it
+still falls below even the most sensitive threshold (`high_recall`, 0.145), so the model
+genuinely saw nothing unusual here rather than merely being too conservative. Threshold tuning
+recovers surges the model ranked highly but did not call; it cannot recover ones it scored low.
 
 ---
 

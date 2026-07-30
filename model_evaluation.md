@@ -65,14 +65,37 @@ Highest precision (0.533), so when it does call a surge it's right about half th
 
 Best F1 (0.296), ROC-AUC (0.871), and PR-AUC (0.299), so it's the strongest overall and has the best-balanced confusion matrix (20 TP, 27 FP, 68 FN). Its probability outputs give the most room to tune the threshold to whatever trade-off the team wants. Still only 0.227 recall at the default threshold though, so it misses 68 of 88 surges. Good ranking, conservative default cutoff. Less interpretable than logistic regression, but the SHAP analysis covers that, and it needs the OpenMP runtime (`libomp`) installed to run. Best when you want the single strongest model and can tune the threshold. This is the one I'd carry forward.
 
+## Follow-up: tuning the threshold (the recommendation below, carried out)
+
+The first recommendation in the original writeup was to stop using the default 0.5 cutoff. That has now been done in `final_model/build_final_pipeline.py`, so here is what it bought.
+
+Nobody chose 0.5. It is the scikit-learn default that `.predict()` applies silently, and it assumes balanced classes and equal costs for a false positive and a false negative. Neither is true here. Thresholds were re-picked on a time-based validation window carved off the end of the training data (2024-12-14 onward, 1,502 rows). The test set was never used to choose one.
+
+| Operating point | Threshold | Precision | Recall | F1 | Balanced acc. | TP | FP | FN |
+|---|---|---|---|---|---|---|---|---|
+| Default (unchosen) | 0.500 | 0.447 | 0.239 | 0.311 | 0.613 | 21 | 26 | 67 |
+| High precision (F0.5) | 0.385 | 0.359 | 0.420 | 0.387 | 0.695 | 37 | 66 | 51 |
+| Balanced (F1) | 0.241 | 0.199 | 0.523 | 0.288 | 0.719 | 46 | 185 | 42 |
+| High recall (F2) | 0.145 | 0.124 | 0.682 | 0.209 | 0.743 | 60 | 425 | 28 |
+
+Surges caught goes from 21 out of 88 up to 37, 46, or 60 depending on how many false alarms are tolerable. The 0.385 point is the interesting one: it beats the default on F1, recall, and balanced accuracy simultaneously, giving up only precision. ROC-AUC and PR-AUC are unchanged at 0.873 and 0.327, because moving the threshold does not change the model, only where the cutoff sits.
+
+Two other things I tried that did **not** work, worth recording so nobody repeats them:
+
+- **`scale_pos_weight`** shifts the operating point but does not improve ranking. ROC-AUC stayed at 0.872 versus 0.873 without it. It is redundant with threshold tuning.
+- **Hyperparameter and training-window changes** did not help either. Depth 3 and 6, lower learning rate with more trees, subsampling, stronger regularization, training only on 2023+ or 2024+, and recency sample weighting were all tested. None improved PR-AUC over the current settings, and recency weighting made it worse (0.288 versus 0.327). The available gain here was in the threshold, not the model.
+
+One finding that explains a lot of the difficulty: **the surge rate falls steadily over time**, from 26% of weeks in 2022 to 19% in 2023, 11% in 2024, 4.4% in 2025, and 1.7% in 2026. The model is trained on a period when surges were several times more common than in the test period, which is why a threshold tuned on validation transfers imperfectly to test.
+
 ## Bottom line
 
 1. Report F1, ROC-AUC, PR-AUC, and recall as the headline numbers, not accuracy. Accuracy is dominated by the 96% "no surge" majority and makes a do-nothing model look strong.
-2. XGBoost is the best overall, so it's the one to carry forward into the SHAP work and anything after.
-3. No model is production-ready yet. Even the best PR-AUC is 0.30, and default recall is low for the strong-ranking models. Highest-value next steps for whoever picks this up:
-   - Tune the decision threshold instead of leaving it at 0.5. Pick the operating point on XGBoost's PR curve that matches the precision/recall trade-off you want.
-   - Try resampling or `scale_pos_weight` on XGBoost to lift recall the way `class_weight="balanced"` does for logistic regression.
-   - Consider evaluating a regression on `y_reg_next_admits` as a second framing, since the binary surge label throws away the size of the jump.
+2. XGBoost is the best overall, so it's the one carried forward into the SHAP work and the app.
+3. Use a tuned threshold, not `.predict()`. This was the single biggest improvement available and it required no retraining.
+4. Still not production-ready. PR-AUC is 0.327 against a no-skill floor of 0.039, which is real signal, but precision at useful recall is low. Remaining next steps:
+   - Fix `admits_per100k` upstream. It divides statewide admissions by wastewater-plant population, mixing denominators, and produces impossible values such as Florida at 6,941 admissions per 100k in a single week. SHAP ranks it as an important feature, so this matters.
+   - Address the base-rate drift, for example by calibrating probabilities on a recent window.
+   - Consider a regression framing on `y_reg_next_admits`, since the binary label throws away the size of the jump.
 
 ## Files produced
 

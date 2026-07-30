@@ -1,3 +1,4 @@
+import os
 import joblib
 import numpy as np
 import pandas as pd
@@ -14,11 +15,16 @@ from sklearn.metrics import (
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-MODEL_PATH = "final_model/surge_prediction_pipeline.pkl"
-FEATURES_PATH = "final_model/pipeline_features.txt"
-FEATURE_MATRIX_PATH = "feature_matrix_era2022.csv"
-TARGETS_PATH = "targets_era2022.csv"
-OUTPUT_DIR = "shap"
+# Resolved from this file's location so the script runs from any directory.
+# Note: this file must NOT be named shap.py, or `import shap` above would
+# import it instead of the SHAP library.
+ROOT = os.path.dirname(os.path.abspath(__file__))
+
+MODEL_PATH = os.path.join(ROOT, "final_model", "surge_prediction_pipeline.pkl")
+FEATURES_PATH = os.path.join(ROOT, "final_model", "pipeline_features.txt")
+FEATURE_MATRIX_PATH = os.path.join(ROOT, "feature_matrix_era2022.csv")
+TARGETS_PATH = os.path.join(ROOT, "targets_era2022.csv")
+OUTPUT_DIR = os.path.join(ROOT, "shap")
 
 TOP4_FOR_DEPENDENCE = ["admits_per100k", "conc_site_z_mean", "epiweek_of_year", "log10_conc_mean"]
 

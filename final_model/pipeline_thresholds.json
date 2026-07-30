@@ -1,0 +1,13 @@
+{
+  "thresholds": {
+    "high_precision": 0.385,
+    "balanced": 0.241,
+    "high_recall": 0.1455
+  },
+  "default": "balanced",
+  "selection": {
+    "method": "F-beta maximized on a time-based validation window (last 20% of training weeks); the test set is never used to choose a threshold",
+    "validation_cutoff": "2024-12-14",
+    "n_validation": 1502
+  }
+}
