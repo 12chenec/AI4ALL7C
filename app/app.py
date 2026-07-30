@@ -1,11 +1,10 @@
 """
-Streamlit app for the COVID-19 surge prediction model.
+Streamlit app for the surge prediction model.
 
-Loads the final XGBoost pipeline from final_model/ along with the thresholds
-tuned in build_final_pipeline.py, and predicts whether a state is heading into
-a COVID admissions surge next week.
+Loads the pipeline and the tuned thresholds out of final_model/ and predicts
+whether a state is heading into a COVID admissions surge next week.
 
-Run locally with:  streamlit run app/app.py
+Run it with: streamlit run app/app.py
 """
 
 import json
@@ -24,9 +23,9 @@ DATA_PATH = BASE_DIR / "feature_matrix_era2022.csv"
 st.set_page_config(page_title="COVID-19 Surge Predictor", layout="centered")
 
 
-# ---------------------------------------------------------------------------
-# Loading (cached so Streamlit doesn't re-read on every interaction)
-# ---------------------------------------------------------------------------
+# -----------------------------
+# Load model and data (cached so it doesn't reload on every click)
+# -----------------------------
 @st.cache_resource
 def load_model():
     model = joblib.load(MODEL_PATH)
@@ -43,7 +42,7 @@ def load_reference_data():
 
 model, FEATURES, THRESHOLD_INFO = load_model()
 
-# Human-readable labels and help text for each model input.
+# Labels and tooltips for each input, so the form isn't just raw column names.
 LABELS = {
     "log10_conc_mean": ("Average wastewater concentration (log10)",
                         "Mean viral concentration across sites this week, log10 scale. Typical range 1.4 to 7.0."),
@@ -68,8 +67,8 @@ LABELS = {
     "epiweek_of_year": ("Epidemiological week", "CDC epiweek number, 1 to 52."),
 }
 
-# Reasonable starting values (medians of the 2022+ dataset), so the form is not
-# pre-filled with zeros that fall outside the range the model ever saw.
+# Medians from the 2022+ data. Starting the form at zeros was a problem before,
+# since zero is outside the range the model was trained on for most of these.
 DEFAULTS = {
     "log10_conc_mean": 4.644, "log10_conc_median": 4.678, "conc_site_z_mean": -0.011,
     "n_samples": 28.0, "n_sites": 16.0, "pct_nondetect": 0.0, "pop_served": 2662524.0,
@@ -88,9 +87,9 @@ GROUPS = [
 ]
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------
 # Header
-# ---------------------------------------------------------------------------
+# -----------------------------
 st.title("COVID-19 Surge Prediction")
 st.write(
     "Predicts whether a state is heading into a COVID-19 hospital admissions "
@@ -99,9 +98,9 @@ st.write(
 )
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------
 # Sidebar: alert sensitivity
-# ---------------------------------------------------------------------------
+# -----------------------------
 st.sidebar.header("Alert sensitivity")
 st.sidebar.write(
     "The model outputs a probability. This setting controls how high that "
@@ -130,9 +129,9 @@ st.sidebar.caption(
 )
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------
 # Input mode
-# ---------------------------------------------------------------------------
+# -----------------------------
 mode = st.radio(
     "Input",
     ["Load a real state and week", "Enter values manually"],
@@ -187,9 +186,9 @@ else:
                         label, value=float(DEFAULTS[feat]), help=helptext)
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------
 # Prediction
-# ---------------------------------------------------------------------------
+# -----------------------------
 st.divider()
 
 if st.button("Predict", type="primary", width="stretch"):

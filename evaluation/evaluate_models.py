@@ -59,9 +59,9 @@ except Exception as e:  # noqa: BLE001 - any import/runtime error means skip
     print("XGBoost unavailable, it will be skipped:", e)
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------
 # Paths
-# ---------------------------------------------------------------------------
+# -----------------------------
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
@@ -88,21 +88,21 @@ DROP_COLUMNS = [
     TARGET,
 ]
 
-# Validated categorical palette (dataviz skill, first three slots pass all-pairs CVD).
+# Colors picked to stay distinguishable for colorblind readers.
 COLORS = {
     "Logistic Regression": "#2a78d6",  # blue
     "Random Forest": "#eb6834",        # orange
-    "XGBoost": "#1baf7a",              # aqua
-    "Majority-class baseline": "#8a8a86",  # neutral gray (reference, not a real model)
+    "XGBoost": "#1baf7a",              # green
+    "Majority-class baseline": "#8a8a86",  # grey, since it's a reference not a real model
 }
 INK = "#0b0b0b"
 INK_SOFT = "#52514e"
 GRID = "#e2e2dd"
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------
 # Load, merge, split  (identical to train_models.py)
-# ---------------------------------------------------------------------------
+# -----------------------------
 def load_data():
     features = pd.read_csv(FEATURE_FILE)
     targets = pd.read_csv(TARGET_FILE)
@@ -124,14 +124,14 @@ def load_data():
     return train_df, test_df, X_train, X_test, y_train, y_test
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------
 # Model zoo  (same configs as train_models.py, plus a majority-class baseline)
-# ---------------------------------------------------------------------------
+# -----------------------------
 def build_models():
     models = {}
 
-    # Majority-class reference: always predicts "no surge". Establishes the
-    # accuracy floor that any useful model must beat on more than accuracy.
+    # Always predicts "no surge". It's here to show what accuracy you get for
+    # free, so nobody reads the real models' accuracy as impressive.
     models["Majority-class baseline"] = DummyClassifier(strategy="most_frequent")
 
     models["Logistic Regression"] = Pipeline(
@@ -169,9 +169,9 @@ def build_models():
     return models
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------
 # Fit + score
-# ---------------------------------------------------------------------------
+# -----------------------------
 def evaluate(models, X_train, X_test, y_train, y_test):
     metrics = []
     proba = {}
@@ -219,9 +219,9 @@ def evaluate(models, X_train, X_test, y_train, y_test):
     return pd.DataFrame(metrics), preds, proba
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------
 # Plot helpers
-# ---------------------------------------------------------------------------
+# -----------------------------
 def _style(ax):
     ax.set_facecolor("white")
     for spine in ("top", "right"):
@@ -369,9 +369,9 @@ def plot_metric_comparison(metrics_df, model_order):
     return out
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------
 # Text report
-# ---------------------------------------------------------------------------
+# -----------------------------
 def write_confusion_text(metrics_df, y_test):
     lines = []
     lines.append("CONFUSION MATRICES & DERIVED RATES - 2022+ test set")
@@ -402,9 +402,9 @@ def write_confusion_text(metrics_df, y_test):
     return out
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------
 # Main
-# ---------------------------------------------------------------------------
+# -----------------------------
 def main():
     print("Loading data...")
     train_df, test_df, X_train, X_test, y_train, y_test = load_data()

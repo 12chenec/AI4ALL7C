@@ -1,31 +1,16 @@
 """
-Builds and saves the final COVID surge-prediction pipeline.
+Builds the final XGBoost pipeline and saves it into this folder.
 
-Two things happen here:
+Same model as train_models.py, except this also picks a decision threshold
+instead of leaving it at the 0.5 default. Only about 4% of weeks are surges, so
+0.5 is way too high and the model barely flags anything. We hold out the last
+chunk of the training data as a validation set and pick the thresholds on that,
+so the test set stays untouched.
 
-1. The XGBoost pipeline is fit on the 2022+ training split, exactly as in
-   model_development/train_models.py.
+Saves three options to pick from: high_precision, balanced, high_recall.
 
-2. The decision threshold is tuned. This is the important part. Calling
-   .predict() applies a hardcoded 0.5 cutoff, which is a poor fit for a target
-   where only a few percent of weeks are surges: the model ends up flagging
-   almost nothing and misses most real surges. Instead we carve a time-based
-   validation window off the end of the training data, pick thresholds on it,
-   and save them next to the model so downstream code (the Streamlit app, the
-   docs) can use a cutoff that matches the intended trade-off.
-
-   Three operating points are saved, all chosen on validation only, never on
-   the test set:
-
-     high_precision  F0.5-optimal, fewer false alarms, catches less
-     balanced        F1-optimal
-     high_recall     F2-optimal, catches the most surges, more false alarms
-
-Outputs (written next to this script):
-  surge_prediction_pipeline.pkl  fitted pipeline
-  pipeline_features.txt          the model's feature columns, in order
-  pipeline_thresholds.json       tuned thresholds + how they were chosen
-  pipeline_test_metrics.json     test metrics at 0.5 and at each threshold
+Writes surge_prediction_pipeline.pkl, pipeline_features.txt,
+pipeline_thresholds.json and pipeline_test_metrics.json.
 """
 
 import os
@@ -58,8 +43,8 @@ DROP_COLUMNS = [
     TARGET,
 ]
 
-# Fraction of the training weeks (earliest first) used for fitting when tuning
-# thresholds; the remainder becomes the validation window.
+# How much of the training weeks to fit on when tuning. The last 20% becomes
+# the validation window.
 VAL_SPLIT = 0.8
 
 
@@ -72,9 +57,9 @@ def load():
 
 
 def make_pipeline(feature_list):
-    # Passthrough "preprocessing" that just selects and orders the engineered
-    # feature columns, so the pipeline accepts a raw merged dataframe with extra
-    # id/target columns. No scaling or imputation: XGBoost handles NaN natively.
+    # The "preprocessing" step just picks out the feature columns in the right
+    # order, so we can hand the pipeline a full dataframe with id/target columns
+    # still in it. No scaling or imputation since XGBoost handles NaN itself.
     preprocessing = ColumnTransformer(
         [("select_features", "passthrough", feature_list)],
         remainder="drop",
@@ -92,9 +77,9 @@ def make_pipeline(feature_list):
 
 
 def best_threshold(y_true, proba, beta):
-    """Threshold maximizing F-beta. beta>1 favors recall, beta<1 favors precision."""
+    """Best F-beta threshold. beta > 1 leans toward recall, beta < 1 toward precision."""
     precision, recall, thresholds = precision_recall_curve(y_true, proba)
-    # drop the trailing point, which has no corresponding threshold
+    # last point has no threshold attached, so drop it
     precision, recall = precision[:-1], recall[:-1]
     fbeta = (1 + beta ** 2) * precision * recall / (
         beta ** 2 * precision + recall + 1e-12
@@ -136,7 +121,7 @@ def main():
     print(f"Surge rate  train {train_df[TARGET].mean():.3f}   "
           f"test {test_df[TARGET].mean():.3f}")
 
-    # ---- tune thresholds on a time-based validation window -----------------
+    # ---- pick thresholds on the validation window ----
     weeks = np.sort(train_df["week_end"].unique())
     cutoff = weeks[int(len(weeks) * VAL_SPLIT)]
     inner_df = train_df[train_df["week_end"] < cutoff]
@@ -159,7 +144,7 @@ def main():
     for name, thr in thresholds.items():
         print(f"  {name:15} {thr:.4f}")
 
-    # ---- refit on the full training split -----------------------------------
+    # ---- refit on all the training data ----
     pipeline = make_pipeline(feature_list)
     pipeline.fit(train_df.drop(columns=[TARGET]), train_df[TARGET])
 
@@ -195,7 +180,7 @@ def main():
               f"{m['recall']:6.3f} {m['f1']:6.3f} {m['balanced_accuracy']:8.3f}   "
               f"{m['tp']}/{m['fp']}/{m['fn']}")
 
-    # ---- save ---------------------------------------------------------------
+    # ---- save everything ----
     joblib.dump(pipeline, os.path.join(OUT_DIR, "surge_prediction_pipeline.pkl"))
 
     with open(os.path.join(OUT_DIR, "pipeline_features.txt"), "w") as fh:

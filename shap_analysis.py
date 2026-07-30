@@ -15,9 +15,9 @@ from sklearn.metrics import (
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-# Resolved from this file's location so the script runs from any directory.
-# Note: this file must NOT be named shap.py, or `import shap` above would
-# import it instead of the SHAP library.
+# Paths are relative to this file so the script works from any directory.
+# Also: don't rename this back to shap.py. That shadows the real shap library
+# and the import at the top breaks.
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
 MODEL_PATH = os.path.join(ROOT, "final_model", "surge_prediction_pipeline.pkl")
