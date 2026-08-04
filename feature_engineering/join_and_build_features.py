@@ -10,7 +10,7 @@ NOT a cleaning script. Run the two cleaning scripts first:
 import pandas as pd, numpy as np, os
 
 # OUT = '/mnt/user-data/outputs'
-OUT = '/Users/christalchen/Documents/coding/AI4ALL7C'
+OUT = '/Users/anushamagdum/Documents/AI4ALL7C/data_cleaning'
 LOG = []
 def log(step, n, reason):
     LOG.append({'step': step, 'rows_remaining': n, 'reason': reason})
@@ -23,18 +23,25 @@ ww = pd.read_csv(f'{OUT}/wastewater_weekly_clean.csv', parse_dates=['week_end'])
 log('30_wastewater_weekly', len(ww), 'from clean_wastewater.py')
 
 labels = pd.read_csv(f'{OUT}/hospital_admissions_weekly_clean.csv', parse_dates=['week_end'])
+
+
+
+labels['admits'] = pd.to_numeric(
+    labels['admits'],
+    errors='coerce'
+)
+
 log('30b_hospital_weekly', len(labels), 'from clean_hospital_admissions.py')
 
 
 
-m = ww.merge(labels, on=['state_territory','week_end'], how='inner')
+m = ww.merge(labels, on=['state_territory','week_end'], how='left')
 log('31_joined_weekly', len(m), 'inner join on state + WEEK (both weekly now)')
 
 m = m.sort_values(['state_territory','week_end'])
 
 # per-100k normalisation so states are comparable
-m['admits_per100k'] = m['admits'] / (m['pop_served'] / 1e5)
-
+m['admits_per100k'] = m['admits']
 # ---- TARGET: 1 week ahead (the proposal's actual horizon) ----
 g = m.groupby('state_territory')
 m['admits_next_week'] = g['admits'].shift(-1)
