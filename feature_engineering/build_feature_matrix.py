@@ -20,7 +20,7 @@ import pandas as pd
 import numpy as np
 import os
 
-IN_DIR = "."   # run from repo root, or edit this path
+IN_DIR = "data_cleaning"  # run from repo root, or edit this path
 OUT_DIR = "."
 
 # ---------------------------------------------------------------------------

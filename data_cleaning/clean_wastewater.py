@@ -7,8 +7,9 @@ Every filter logs rows in/out to cleaning_log.csv so decisions are auditable.
 """
 import pandas as pd, numpy as np, json, os
 
-UP = '/mnt/user-data/uploads'
-OUT = '/mnt/user-data/outputs'
+UP = '/Users/anushamagdum/Documents/AI4ALL7C'
+OUT = '/Users/anushamagdum/Documents/AI4ALL7C/data_cleaning'
+
 os.makedirs(OUT, exist_ok=True)
 
 LOG = []
@@ -26,7 +27,7 @@ WW_COLS = ['record_id','site','state_territory','county_fips','counties_served',
            'sample_location','pcr_target','pcr_gene_target_agg','pcr_target_avg_conc',
            'pcr_target_units','lod_sewage','pcr_target_detect','pcr_type','flow_rate']
 
-ww = pd.read_csv(f'{UP}/CDC_Wastewater_Data_for_SARS-CoV-2.csv', usecols=WW_COLS, low_memory=False)
+ww = pd.read_csv(f'{UP}/CDC_Wastewater_Data_for_SARS-CoV-2_20260804.csv', usecols=WW_COLS, low_memory=False)
 log('00_raw_load', ww, 'as delivered by CDC')
 
 # --- Step 1: parse dates ---
@@ -41,6 +42,14 @@ log('02_conc_not_null', ww, 'pcr_target_avg_conc is our core feature; cannot imp
 # --- Step 3: UNIT HARMONISATION (critical) ---
 # Three unit systems exist. copies/g dry sludge is a DIFFERENT physical quantity
 # (mass-normalised solids) and is NOT convertible to copies/L liquid.
+ww['pcr_target_avg_conc'] = pd.to_numeric(
+    ww['pcr_target_avg_conc'],
+    errors='coerce'
+)
+ww['lod_sewage'] = pd.to_numeric(
+    ww['lod_sewage'],
+    errors='coerce'
+)
 ww['units_norm'] = ww['pcr_target_units'].str.strip().str.lower()
 
 # 3a. log10 rows -> convert back to linear so all liquid rows share one scale
