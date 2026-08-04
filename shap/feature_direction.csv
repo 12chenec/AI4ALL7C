@@ -1,0 +1,18 @@
+feature,mean_abs_shap,value_vs_shap_corr,direction
+admits_per100k,0.8174,0.532,higher -> more surge risk
+conc_site_z_mean,0.7998,0.919,higher -> more surge risk
+epiweek_of_year,0.5293,0.942,higher -> more surge risk
+log10_conc_mean,0.4534,0.737,higher -> more surge risk
+log10_conc_lag3,0.2358,-0.77,higher -> less surge risk
+coverage,0.1751,-0.511,higher -> less surge risk
+log10_conc_lag1,0.1656,0.657,higher -> more surge risk
+n_samples,0.1559,-0.381,higher -> less surge risk
+conc_delta_1w,0.1487,0.653,higher -> more surge risk
+admits,0.1244,0.117,mixed / not monotonic
+log10_conc_lag2,0.1063,-0.415,higher -> less surge risk
+log10_conc_median,0.0954,0.609,higher -> more surge risk
+pop_served,0.0808,-0.618,higher -> less surge risk
+month,0.0763,-0.337,higher -> less surge risk
+pct_nondetect,0.044,0.397,higher -> more surge risk
+n_sites,0.0392,-0.775,higher -> less surge risk
+conc_roll3,0.0383,0.511,higher -> more surge risk

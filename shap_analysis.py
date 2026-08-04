@@ -148,6 +148,42 @@ def make_waterfall_figures(pipe, X_test, shap_values, expected_value, test, y_pr
         print(f"{label}: state={st}, week={wk}, predicted probability={proba:.3f}")
 
 
+def direction_table(X_test, shap_values, feat_cols, outdir):
+    """Which way each feature pushes the prediction.
+
+    The beeswarm shows this by colour, but for writing it up it helps to have a
+    number. Correlating a feature's value against its SHAP value gives one:
+    positive means a higher value pushes toward surge, negative means away.
+    Values near zero mean the effect isn't monotonic and you should read the
+    dependence plot instead.
+    """
+    rows = []
+    for i, feat in enumerate(feat_cols):
+        x = X_test[feat].to_numpy(dtype=float)
+        s = shap_values[:, i]
+        ok = ~np.isnan(x)
+        corr = np.corrcoef(x[ok], s[ok])[0, 1] if ok.sum() > 2 else np.nan
+        if corr > 0.15:
+            direction = "higher -> more surge risk"
+        elif corr < -0.15:
+            direction = "higher -> less surge risk"
+        else:
+            direction = "mixed / not monotonic"
+        rows.append({"feature": feat,
+                     "mean_abs_shap": round(float(np.abs(s).mean()), 4),
+                     "value_vs_shap_corr": round(float(corr), 3),
+                     "direction": direction})
+
+    table = pd.DataFrame(rows).sort_values("mean_abs_shap", ascending=False)
+    out = f"{outdir}/feature_direction.csv"
+    table.to_csv(out, index=False)
+
+    print("=== Which way each feature pushes the prediction ===")
+    print(table.to_string(index=False))
+    print()
+    return table
+
+
 def main():
     import os
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -157,6 +193,7 @@ def main():
 
     X_test, shap_values, expected_value = compute_shap(pipe, feat_cols, test)
 
+    direction_table(X_test, shap_values, feat_cols, OUTPUT_DIR)
     make_global_figures(X_test, shap_values, feat_cols, OUTPUT_DIR)
     make_dependence_figure(X_test, shap_values, OUTPUT_DIR)
     make_waterfall_figures(pipe, X_test, shap_values, expected_value, test, y_pred, y_proba, OUTPUT_DIR)
