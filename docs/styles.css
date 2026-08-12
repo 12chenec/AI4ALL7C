@@ -88,7 +88,7 @@ h1, h2, h3, p { margin-top: 0; }
 h1, h2, h3 { letter-spacing: -0.035em; }
 h1 {
   margin-bottom: 1.35rem;
-  font-size: clamp(3rem, 6.7vw, 6.6rem);
+  font-size: clamp(2.5rem, 5vw, 5rem);
   line-height: 0.94;
   font-weight: 760;
   max-width: 11.8ch;
