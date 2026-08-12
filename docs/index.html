@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="AI4ALL Group 7C project: using wastewater surveillance and machine learning to predict next-week COVID-19 hospital-admission surges." />
+  <meta name="theme-color" content="#f6f2e9" />
+  <title>Wastewater Outbreak Prediction | AI4ALL Group 7C</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header" id="top">
+    <div class="nav-shell">
+      <a class="brand" href="#top" aria-label="Wastewater Outbreak Prediction home">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span><strong>AI4ALL</strong> · Group 7C</span>
+      </a>
+
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span class="sr-only">Toggle navigation</span>
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="#approach">Approach</a>
+        <a href="#data">Data</a>
+        <a href="#models">Models</a>
+        <a href="#explainability">Explainability</a>
+        <a href="#responsible-ai">Responsible AI</a>
+      </nav>
+
+      <a class="button button-small button-dark desktop-cta" href="https://ai4all7c-svsehmuzxx4dv5jnwsjzbq.streamlit.app/" target="_blank" rel="noreferrer">Launch demo ↗</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero section-shell" aria-labelledby="hero-title">
+      <div class="hero-copy reveal">
+        <p class="eyebrow">AI4ALL · Public health + machine learning</p>
+        <h1 id="hero-title">Can wastewater signal a hospital surge <em>before it happens?</em></h1>
+        <p class="hero-lede">We built a next-week COVID-19 surge classifier using community wastewater signals, recent hospital admissions, and seasonal patterns — then evaluated where it works, where it fails, and who the data may leave out.</p>
+        <div class="hero-actions">
+          <a class="button button-dark" href="https://github.com/12chenec/AI4ALL7C" target="_blank" rel="noreferrer">View GitHub ↗</a>
+          <a class="button button-light" href="https://ai4all7c-svsehmuzxx4dv5jnwsjzbq.streamlit.app/" target="_blank" rel="noreferrer">Try the dashboard ↗</a>
+        </div>
+        <div class="hero-stats" aria-label="Project highlights">
+          <div><strong>10,195</strong><span>joined state-weeks</span></div>
+          <div><strong>17</strong><span>model features</span></div>
+          <div><strong>~8×</strong><span>PR-AUC over no-skill</span></div>
+        </div>
+      </div>
+
+      <div class="hero-visual reveal" aria-label="Illustration of a wastewater signal becoming a prediction">
+        <div class="signal-card">
+          <div class="signal-topline">
+            <span>Signal monitor</span>
+            <span class="live-dot">research demo</span>
+          </div>
+          <div class="signal-stage">
+            <svg class="signal-wave" viewBox="0 0 620 270" role="img" aria-label="Stylized rising wastewater signal">
+              <defs>
+                <linearGradient id="waveFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#2d8f78" stop-opacity="0.28" />
+                  <stop offset="100%" stop-color="#2d8f78" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              <path class="gridline" d="M18 50H602M18 108H602M18 166H602M18 224H602" />
+              <path class="wave-area" d="M18,212 C58,210 71,191 103,195 C134,198 149,164 178,173 C210,184 228,138 258,147 C290,156 307,129 338,131 C369,133 389,102 421,116 C452,130 472,83 503,91 C535,99 555,57 602,65 L602,245 L18,245 Z" />
+              <path class="wave-line" d="M18,212 C58,210 71,191 103,195 C134,198 149,164 178,173 C210,184 228,138 258,147 C290,156 307,129 338,131 C369,133 389,102 421,116 C452,130 472,83 503,91 C535,99 555,57 602,65" />
+              <circle cx="602" cy="65" r="7" class="wave-point" />
+            </svg>
+
+            <div class="bubble b1"></div>
+            <div class="bubble b2"></div>
+            <div class="bubble b3"></div>
+            <div class="bubble b4"></div>
+
+            <div class="prediction-chip">
+              <span>Next-week output</span>
+              <strong>Surge risk</strong>
+              <small>binary classification</small>
+            </div>
+          </div>
+          <div class="signal-legend">
+            <span><i class="legend-line"></i> wastewater trend</span>
+            <span><i class="legend-threshold"></i> model signal</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="question-band">
+      <div class="section-shell question-grid reveal">
+        <p class="eyebrow">Research question</p>
+        <h2>Can rising SARS-CoV-2 concentrations in wastewater predict a COVID-19 hospital-admission surge in the following week?</h2>
+        <p class="definition"><strong>Surge:</strong> next-week admissions rise by more than 10% <em>and</em> exceed that state's median admissions level.</p>
+      </div>
+    </section>
+
+    <section class="section-shell section" id="approach" aria-labelledby="approach-title">
+      <div class="section-heading reveal">
+        <div>
+          <p class="eyebrow">01 · Approach</p>
+          <h2 id="approach-title">From a community signal to an early warning</h2>
+        </div>
+        <p>Wastewater surveillance captures viral activity without depending on individual testing. We transform that signal into state-week features and ask the model to classify what happens one week later.</p>
+      </div>
+
+      <ol class="process-grid reveal">
+        <li>
+          <span class="step-no">01</span>
+          <div class="process-icon process-virus" aria-hidden="true">✦</div>
+          <h3>Virus enters wastewater</h3>
+          <p>Community shedding creates a population-level signal in sewer systems.</p>
+        </li>
+        <li>
+          <span class="step-no">02</span>
+          <div class="process-icon" aria-hidden="true">◒</div>
+          <h3>Operators collect samples</h3>
+          <p>Treatment plants report samples with site, date, concentration, and coverage information.</p>
+        </li>
+        <li>
+          <span class="step-no">03</span>
+          <div class="process-icon" aria-hidden="true">⌁</div>
+          <h3>Labs quantify viral RNA</h3>
+          <p>We clean and normalize measurements, then align them to CDC Saturday-ending epiweeks.</p>
+        </li>
+        <li>
+          <span class="step-no">04</span>
+          <div class="process-icon" aria-hidden="true">↗</div>
+          <h3>Model predicts next week</h3>
+          <p>XGBoost combines wastewater, recent admissions, lags, seasonality, and data-quality signals.</p>
+        </li>
+      </ol>
+
+      <div class="evolution-card reveal">
+        <div class="evolution-copy">
+          <p class="eyebrow">Project evolution</p>
+          <h3>The label had to change before the model could mean anything.</h3>
+          <p>Our original COVID Case Surveillance source only recorded the month and left just <strong>220 usable labels</strong>. A one-week forecast cannot be validated against a label that stays identical for every week in a month.</p>
+        </div>
+        <div class="evolution-flow" aria-label="Project evolution from case prediction to hospital surge prediction">
+          <div><span>Original</span><strong>Cases</strong><small>monthly label</small></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-problem"><span>Problem</span><strong>220</strong><small>usable labels</small></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-solution"><span>Swapped to</span><strong>Admissions</strong><small>weekly NHSN data</small></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-final"><span>Final</span><strong>10,195</strong><small>joined state-weeks</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-tint" id="data" aria-labelledby="data-title">
+      <div class="section-shell">
+        <div class="section-heading reveal">
+          <div>
+            <p class="eyebrow">02 · Data + features</p>
+            <h2 id="data-title">Two CDC datasets, one carefully aligned timeline</h2>
+          </div>
+          <p>The cleaning work mattered as much as the model. Unit mismatches, non-detects, duplicate measurements, and a one-day week alignment bug could all create false signals.</p>
+        </div>
+
+        <div class="dataset-grid reveal">
+          <article class="dataset-card">
+            <span class="dataset-number">01</span>
+            <p class="dataset-kicker">CDC Wastewater</p>
+            <h3>SARS-CoV-2 wastewater surveillance</h3>
+            <p>Started with <strong>584,287 samples</strong>. We retained comparable liquid-wastewater units, handled non-detects, log-transformed the signal, aggregated by state-week, and required at least two reporting sites.</p>
+            <a href="https://data.cdc.gov/Public-Health-Surveillance/CDC-Wastewater-Data-for-SARS-CoV-2/j9g8-acpt/about_data" target="_blank" rel="noreferrer">CDC dataset ↗</a>
+          </article>
+          <article class="dataset-card dataset-card-dark">
+            <span class="dataset-number">02</span>
+            <p class="dataset-kicker">CDC NHSN</p>
+            <h3>Weekly hospital respiratory metrics</h3>
+            <p>We removed aggregate region rows, missing admission counts, and the May-Oct 2024 voluntary-reporting window so paperwork changes would not masquerade as a real drop in disease.</p>
+            <a href="https://data.cdc.gov/Public-Health-Surveillance/Weekly-Hospital-Respiratory-Data-HRD-Metrics-by-Ju/ua7e-t2fy/about_data" target="_blank" rel="noreferrer">CDC dataset ↗</a>
+          </article>
+        </div>
+
+        <div class="cleaning-grid reveal">
+          <article>
+            <span class="mini-icon">≠</span>
+            <h3>Keep units comparable</h3>
+            <p>About 100K dry-sludge measurements were removed; they are a different physical quantity from copies/L wastewater.</p>
+          </article>
+          <article>
+            <span class="mini-icon">½</span>
+            <h3>Handle non-detects</h3>
+            <p>40,336 reported zeros meant “below detection,” not “no virus.” They were replaced with LOD/2 and flagged.</p>
+          </article>
+          <article>
+            <span class="mini-icon">Sat</span>
+            <h3>Align epiweeks</h3>
+            <p>Wastewater initially ended on Sunday; NHSN ends on Saturday. That one-day mismatch made the first join return zero rows.</p>
+          </article>
+          <article>
+            <span class="mini-icon">σ</span>
+            <h3>Normalize locally</h3>
+            <p><code>conc_site_z_mean</code> asks whether a reading is unusual for its own sites rather than comparing raw lab values across systems.</p>
+          </article>
+        </div>
+
+        <div class="signal-facts reveal" aria-label="Exploratory analysis findings">
+          <div><strong>r ≈ 0.12</strong><span>raw wastewater vs. next-week admissions</span></div>
+          <div><strong>r ≈ 0.7</strong><span>wastewater lags track one another</span></div>
+          <div><strong>r = 0.97–1.00</strong><span>admissions persist strongly week to week</span></div>
+          <p><strong>Interpretation:</strong> the useful wastewater signal is less about the raw level and more about <em>deviation, slope, and context.</em></p>
+        </div>
+
+        <div class="feature-panel reveal">
+          <div>
+            <p class="eyebrow">Feature matrix</p>
+            <h3>17 inputs describe level, direction, context, and data quality.</h3>
+          </div>
+          <div class="feature-cloud" aria-label="Model feature list">
+            <span class="feature-hot">conc_site_z_mean</span>
+            <span>log10_conc_mean</span><span>log10_conc_median</span>
+            <span>log10_conc_lag1</span><span>log10_conc_lag2</span><span>log10_conc_lag3</span>
+            <span>conc_delta_1w</span><span>conc_roll3</span>
+            <span>admits</span><span>admits_per100k</span><span>coverage</span>
+            <span>n_samples</span><span>n_sites</span><span>pct_nondetect</span><span>pop_served</span>
+            <span>month</span><span>epiweek_of_year</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell section" id="models" aria-labelledby="models-title">
+      <div class="section-heading reveal">
+        <div>
+          <p class="eyebrow">03 · Model evaluation</p>
+          <h2 id="models-title">96% accuracy can still mean “catch zero surges.”</h2>
+        </div>
+        <p>Only 88 of 2,269 held-out state-weeks were true surges (3.9%). That makes accuracy a dangerous headline metric, so we compared precision, recall, F1, balanced accuracy, ROC-AUC, and PR-AUC.</p>
+      </div>
+
+      <div class="model-layout reveal">
+        <div class="metric-board">
+          <div class="metric-board-head">
+            <div>
+              <span class="small-label">Interactive comparison</span>
+              <h3>Same dataset. Very different trade-offs.</h3>
+            </div>
+            <div class="metric-tabs" role="group" aria-label="Choose model metric">
+              <button type="button" class="metric-tab active" data-metric="recall">Recall</button>
+              <button type="button" class="metric-tab" data-metric="precision">Precision</button>
+              <button type="button" class="metric-tab" data-metric="f1">F1</button>
+              <button type="button" class="metric-tab" data-metric="roc">ROC-AUC</button>
+              <button type="button" class="metric-tab" data-metric="pr">PR-AUC</button>
+              <button type="button" class="metric-tab" data-metric="accuracy">Accuracy</button>
+            </div>
+          </div>
+
+          <div class="metric-chart" id="metric-chart" aria-live="polite">
+            <div class="chart-row" data-model="Majority baseline">
+              <div class="chart-label"><strong>Always “no surge”</strong><span>baseline</span></div>
+              <div class="chart-track"><span class="chart-bar bar-baseline"></span></div>
+              <output class="chart-value">0.000</output>
+            </div>
+            <div class="chart-row" data-model="Logistic Regression">
+              <div class="chart-label"><strong>Logistic Regression</strong><span>high recall</span></div>
+              <div class="chart-track"><span class="chart-bar bar-logistic"></span></div>
+              <output class="chart-value">0.682</output>
+            </div>
+            <div class="chart-row" data-model="Random Forest">
+              <div class="chart-label"><strong>Random Forest</strong><span>high precision</span></div>
+              <div class="chart-track"><span class="chart-bar bar-rf"></span></div>
+              <output class="chart-value">0.091</output>
+            </div>
+            <div class="chart-row featured" data-model="XGBoost">
+              <div class="chart-label"><strong>XGBoost ★</strong><span>shipped model</span></div>
+              <div class="chart-track"><span class="chart-bar bar-xgb"></span></div>
+              <output class="chart-value">0.227</output>
+            </div>
+          </div>
+          <p class="chart-note" id="chart-note">Recall asks: of the 88 real surges, how many did the model catch?</p>
+        </div>
+
+        <aside class="accuracy-callout">
+          <span class="small-label">Why accuracy misleads</span>
+          <strong>96.1%</strong>
+          <h3>accuracy from doing nothing</h3>
+          <p>A model that predicts “no surge” every week reaches 96.1% accuracy and catches <strong>0 of 88</strong> real surges.</p>
+          <div class="callout-rule"></div>
+          <p><strong>PR-AUC is more honest here.</strong> The no-skill floor is 0.039; XGBoost reaches 0.299.</p>
+        </aside>
+      </div>
+
+      <div class="model-cards reveal">
+        <article>
+          <span class="model-tag">Baseline</span>
+          <h3>Logistic Regression</h3>
+          <div class="model-stat"><strong>0.682</strong><span>recall</span></div>
+          <p>Catches 60 of 88 surges, but produces 499 false alarms. Best when missing a surge costs more than over-warning.</p>
+        </article>
+        <article>
+          <span class="model-tag">Ensemble</span>
+          <h3>Random Forest</h3>
+          <div class="model-stat"><strong>0.533</strong><span>precision</span></div>
+          <p>Only 7 false alarms, but misses 80 of 88 surges. Its 96.2% accuracy hides extremely low recall.</p>
+        </article>
+        <article class="model-winner">
+          <span class="model-tag">Selected</span>
+          <h3>XGBoost ★</h3>
+          <div class="model-stat"><strong>0.299</strong><span>PR-AUC</span></div>
+          <p>Best F1, ROC-AUC, and PR-AUC. Strongest ranking ability — but the default 0.5 threshold is still too conservative for an early-warning tool.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section section-dark" id="explainability" aria-labelledby="shap-title">
+      <div class="section-shell">
+        <div class="section-heading section-heading-light reveal">
+          <div>
+            <p class="eyebrow">04 · Explainability</p>
+            <h2 id="shap-title">What drives XGBoost's predictions?</h2>
+          </div>
+          <p>SHAP measures how much each feature moves the model output. The strongest reliable wastewater takeaway: <strong>site-normalized concentration outranks raw concentration.</strong></p>
+        </div>
+
+        <div class="shap-grid reveal">
+          <div class="shap-chart" role="img" aria-label="Top SHAP feature importances">
+            <div class="shap-row"><span>admits_per100k</span><div><i style="--w:100%"></i></div><strong>0.819</strong></div>
+            <div class="shap-row shap-highlight"><span>conc_site_z_mean</span><div><i style="--w:95.7%"></i></div><strong>0.784</strong></div>
+            <div class="shap-row"><span>epiweek_of_year</span><div><i style="--w:64.3%"></i></div><strong>0.527</strong></div>
+            <div class="shap-row"><span>log10_conc_mean</span><div><i style="--w:55.2%"></i></div><strong>0.452</strong></div>
+            <div class="shap-row"><span>log10_conc_lag3</span><div><i style="--w:27.8%"></i></div><strong>0.228</strong></div>
+            <div class="shap-row"><span>coverage</span><div><i style="--w:21.0%"></i></div><strong>0.172</strong></div>
+            <div class="shap-row"><span>log10_conc_lag1</span><div><i style="--w:19.9%"></i></div><strong>0.163</strong></div>
+            <div class="shap-row"><span>conc_delta_1w</span><div><i style="--w:18.2%"></i></div><strong>0.149</strong></div>
+          </div>
+
+          <div class="shap-takeaways">
+            <article>
+              <span class="takeaway-number">01</span>
+              <h3>“Unusual for this site” beats “large raw number.”</h3>
+              <p><code>conc_site_z_mean</code> ranks 2nd while raw <code>log10_conc_mean</code> ranks 4th. Site-level normalization reduces cross-plant measurement bias and became a core model signal.</p>
+            </article>
+            <article>
+              <span class="takeaway-number">02</span>
+              <h3>The model reads movement across time.</h3>
+              <p>Lagged wastewater features fan out through the ranking. The model is combining recent history rather than relying on one week's measurement.</p>
+            </article>
+            <article class="warning-card">
+              <span class="takeaway-number">!</span>
+              <h3>Important data-quality caveat</h3>
+              <p>The project later identified a denominator mismatch in <code>admits_per100k</code>: statewide admissions were divided by wastewater-plant population. Because that feature ranks first in SHAP, fixing it is a top future-work priority.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell section" id="responsible-ai" aria-labelledby="responsible-title">
+      <div class="section-heading reveal">
+        <div>
+          <p class="eyebrow">05 · Responsible AI</p>
+          <h2 id="responsible-title">A useful warning system can still amplify blind spots.</h2>
+        </div>
+        <p>Model performance is inseparable from who appears in the surveillance infrastructure. Coverage, reporting rules, label choices, and class imbalance all shape what the model learns.</p>
+      </div>
+
+      <div class="bias-split reveal">
+        <article class="bias-card amplify">
+          <span class="bias-label">Where bias can amplify</span>
+          <h3>Missing communities can become missing warnings.</h3>
+          <p>About 20% of U.S. households are not connected to monitored sewer systems. A model trained on well-covered locations can under-warn communities that are already less visible in the data, including some rural and lower-income areas.</p>
+        </article>
+        <article class="bias-card mitigate">
+          <span class="bias-label">Where the process can mitigate bias</span>
+          <h3>Make artifacts visible — and design around them.</h3>
+          <p>We normalized wastewater against each site's baseline, removed the voluntary-reporting window, split train/test by time, separated future-derived targets from model inputs, and report metrics beyond accuracy.</p>
+        </article>
+      </div>
+
+      <div class="risk-grid reveal">
+        <article><span>01</span><h3>Geographic representation</h3><p>Septic and unmonitored communities are absent, not merely noisier.</p></article>
+        <article><span>02</span><h3>Missing history</h3><p>Early state-weeks lack lag values; models handle missingness differently.</p></article>
+        <article><span>03</span><h3>Class imbalance</h3><p>Surges are only 3.9% of the test set, making accuracy deceptive.</p></article>
+        <article><span>04</span><h3>Label choice</h3><p>“Surge” is one operational definition; a different threshold changes the task.</p></article>
+        <article><span>05</span><h3>Leakage</h3><p>Time-based splitting and separate target files prevent future information from leaking into training.</p></article>
+        <article><span>06</span><h3>Model drift</h3><p>Reporting rules, variants, and surveillance coverage change over time; deployed performance would need monitoring.</p></article>
+      </div>
+    </section>
+
+    <section class="section next-section">
+      <div class="section-shell next-grid reveal">
+        <div>
+          <p class="eyebrow">Next steps</p>
+          <h2>Turn a strong ranking model into a more trustworthy warning system.</h2>
+        </div>
+        <ol>
+          <li><span>01</span><div><strong>Fix the admissions normalization</strong><p>Correct the denominator behind <code>admits_per100k</code> and re-run evaluation + SHAP.</p></div></li>
+          <li><span>02</span><div><strong>Tune the XGBoost threshold</strong><p>Choose an operating point from the precision-recall curve based on the real cost of misses vs. false alarms.</p></div></li>
+          <li><span>03</span><div><strong>Address class imbalance</strong><p>Test <code>scale_pos_weight</code> or resampling to improve recall.</p></div></li>
+          <li><span>04</span><div><strong>Try regression + monitoring</strong><p>Predict next-week admissions directly and track performance by region and over time.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="takeaway-section">
+      <div class="takeaway-inner section-shell reveal">
+        <p class="eyebrow">Main takeaway</p>
+        <blockquote>Wastewater can contribute to an earlier COVID-19 surge warning — but only if we are equally serious about <em>signal quality, threshold choice, and who the data represents.</em></blockquote>
+        <div class="takeaway-actions">
+          <a class="button button-dark" href="https://github.com/12chenec/AI4ALL7C" target="_blank" rel="noreferrer">Explore the repository ↗</a>
+          <a class="button button-light" href="https://ai4all7c-svsehmuzxx4dv5jnwsjzbq.streamlit.app/" target="_blank" rel="noreferrer">Open the demo ↗</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell section team-section" aria-labelledby="team-title">
+      <div class="section-heading reveal">
+        <div>
+          <p class="eyebrow">AI4ALL Group 7C</p>
+          <h2 id="team-title">Built collaboratively</h2>
+        </div>
+        <p>This project combined problem framing, CDC data cleaning, feature engineering, model development, evaluation, explainability, responsible-AI analysis, and deployment.</p>
+      </div>
+      <div class="team-list reveal" aria-label="Team members">
+        <span>Christal</span><span>Anika</span><span>Janvi</span><span>Amy</span><span>Anusha</span><span>Bhavya</span>
+      </div>
+    </section>
+
+    <section class="sources section-tint" aria-labelledby="sources-title">
+      <div class="section-shell sources-inner reveal">
+        <div>
+          <p class="eyebrow">Selected sources</p>
+          <h2 id="sources-title">Data + background</h2>
+        </div>
+        <div class="source-list">
+          <a href="https://www.cdc.gov/wastewater/about/data-methods.html" target="_blank" rel="noreferrer"><span>01</span><p><strong>CDC</strong> · Wastewater Monitoring Data Methodology</p><b>↗</b></a>
+          <a href="https://data.cdc.gov/Public-Health-Surveillance/CDC-Wastewater-Data-for-SARS-CoV-2/j9g8-acpt/about_data" target="_blank" rel="noreferrer"><span>02</span><p><strong>CDC</strong> · Wastewater Data for SARS-CoV-2</p><b>↗</b></a>
+          <a href="https://data.cdc.gov/Public-Health-Surveillance/Weekly-Hospital-Respiratory-Data-HRD-Metrics-by-Ju/ua7e-t2fy/about_data" target="_blank" rel="noreferrer"><span>03</span><p><strong>CDC NHSN</strong> · Weekly Hospital Respiratory Data</p><b>↗</b></a>
+          <a href="https://doi.org/10.1371/journal.pone.0313927" target="_blank" rel="noreferrer"><span>04</span><p><strong>Schenk et al. (2024)</strong> · SARS-CoV-2 surveillance in U.S. wastewater</p><b>↗</b></a>
+        </div>
+        <p class="disclaimer">Educational research demonstration only. This website and model are not medical advice or an operational public-health alerting system.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="section-shell footer-inner">
+      <p><strong>Wastewater Outbreak Prediction</strong> · AI4ALL Group 7C</p>
+      <p>© <span id="year">2026</span> · Built as a static GitHub Pages site.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
