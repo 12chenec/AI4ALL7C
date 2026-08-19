@@ -75,3 +75,6 @@ AI4ALL7C/
 - **Targets:** `y_surge_next_week` (classification: does admissions rise >10% and land above that state's median next week?) and `y_reg_next_admits` (regression: raw admission count next week). Both live in `targets_*.csv`, never in the feature matrix.
 - **Non-stationarity:** the surge base rate drops sharply over the pandemic (43% in 2020 → 2% in 2026), so `model_ready_era2022.csv` restricts to the more stable 2022+ era, and `cv_folds.csv` provides rolling-origin folds as the more honest evaluation method.
 - **Known bias:** ~20% of US households are on septic systems and are invisible to wastewater monitoring. Hospital reporting was voluntary May–Oct 2024, artificially depressing admissions in that window (excluded from the clean data).
+
+## Git Hub Page:
+- https://12chenec.github.io/AI4ALL7C/
